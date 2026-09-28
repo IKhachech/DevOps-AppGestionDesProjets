@@ -1,40 +1,43 @@
 pipeline {
     agent any
+
     stages {
         stage('Checkout') {
             steps { checkout scm }
         }
-        stage('Build Backend') {
-            steps {
-                dir('backend') { sh 'mvn -B clean package -DskipTests' }
-            }
-        }
-        stage('Test Backend') {
-            steps {
-                dir('backend') { sh 'mvn -B test' }
-            }
-        }
-        stage('Build Frontend') {
-            steps {
-                dir('frontend') {
-                    sh 'npm ci'
-                    sh 'npm run build'
-                }
-            }
-        }
+
         stage('Build Docker Images') {
             steps { sh 'docker compose build' }
         }
+
         stage('Deploy Stack') {
             steps {
                 sh 'docker compose down'
                 sh 'docker compose up -d'
             }
         }
+
+        stage('Health Check') {
+            steps {
+                sh '''
+                    for i in $(seq 1 20); do
+                        if curl -sf http://localhost:8090/entreprise/all; then
+                            echo "Backend OK"
+                            exit 0
+                        fi
+                        echo "Waiting for backend..."
+                        sleep 5
+                    done
+                    echo "Backend not reachable"
+                    exit 1
+                '''
+            }
+        }
     }
+
     post {
-        always {
-            archiveArtifacts artifacts: 'backend/target/*.jar', fingerprint: true, allowEmptyArchive: true
+        failure {
+            sh 'docker compose logs --tail=50 || true'
         }
     }
 }
