@@ -13,9 +13,20 @@ pipeline {
             steps { checkout scm }
         }
 
-        stage('Build Docker Images') {
+        stage('Build Backend Image') {
             steps {
-                sh 'docker compose build'
+                sh 'docker build -t devops-appgestiondesprojets-backend ./backend'
+            }
+        }
+
+        stage('Build Frontend Image') {
+            steps {
+                sh 'docker build -t devops-appgestiondesprojets-frontend ./frontend'
+            }
+        }
+
+        stage('Tag Images') {
+            steps {
                 sh 'docker tag devops-appgestiondesprojets-backend ${BACKEND_IMAGE}:latest'
                 sh 'docker tag devops-appgestiondesprojets-frontend ${FRONTEND_IMAGE}:latest'
             }
